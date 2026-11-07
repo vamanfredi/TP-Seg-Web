@@ -1,0 +1,64 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Nexo · Portal de empresas</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='portal.css') }}">
+  <script src="{{ url_for('static', filename='portal.js') }}" defer></script>
+</head>
+<body>
+{% set view = request.args.get('view', 'tickets' if g.user and g.user.role == 'client' else 'exports' if g.user else 'login') %}
+  <aside class="sidebar">
+    <a href="/" class="brand"><span class="brand-mark">n.</span> nexo<span class="brand-dot">®</span></a>
+    <p class="eyebrow sidebar-label">PORTAL DE EMPRESAS</p>
+    {% if g.user %}
+    <nav aria-label="Navegación principal">
+      {% if g.user.role == 'client' %}
+      <a href="/?view=tickets" class="{{ 'active' if view == 'tickets' }}">Mis solicitudes <span>↗</span></a>
+      <a href="/?view=inbox" class="{{ 'active' if view == 'inbox' }}">Mi buzón <span>↗</span></a>
+      {% else %}
+      <a href="/?view=exports" class="{{ 'active' if view == 'exports' }}">Exportaciones <span>↗</span></a>
+      {% endif %}
+      <a href="/?view=recovery" class="{{ 'active' if view == 'recovery' }}">Recuperar cuenta <span>↗</span></a>
+    </nav>
+    <div class="profile"><span class="avatar">{{ g.user.username[:1] | upper }}</span><div><strong>{{ g.user.username }}</strong><small>{{ {'client': 'Cliente', 'operator': 'Operador', 'supervisor': 'Supervisor'}[g.user.role] }}</small></div></div>
+    <button class="logout" id="logout" type="button">Cerrar sesión ↗</button>
+    {% else %}
+    <div class="sidebar-story"><span class="mini-label">TODO EN UN MISMO LUGAR</span><h2>Tu empresa.<br>Más conectada.</h2><p>Seguimiento de solicitudes y acceso a la información que necesitás, desde un solo espacio.</p><div class="orbit" aria-hidden="true"><span>n.</span></div></div>
+    {% endif %}
+    <p class="sidebar-footer">Nexo Empresas · 2026</p>
+  </aside>
+  <main>
+    <header class="topbar"><span>ESPACIO DE TRABAJO <span class="slash">/</span> EMPRESAS</span><span class="connection"><i></i> Portal disponible</span></header>
+    <div class="content">
+    <div id="notice" role="status" aria-live="polite" hidden></div>
+    {% if view == 'recovery' %}
+      <p class="eyebrow">ACCESO A TU CUENTA</p><h1>Recuperar contraseña</h1><p class="intro">Solicitá las instrucciones y confirmá el cambio con el mensaje de tu buzón.</p>
+      <div class="two-columns">
+      <section class="card"><span class="step">01</span><h2>Solicitar instrucciones</h2><p>Ingresá el usuario de la cuenta que querés recuperar.</p><form id="recovery-form"><label for="recovery-username">Usuario</label><input id="recovery-username" name="username" value="{{ g.user.username if g.user else '' }}" autocomplete="username" required maxlength="256"><button type="submit">Enviar instrucciones <span>→</span></button></form>{% if g.user and g.user.role == 'client' %}<a class="text-link" href="/?view=inbox">Abrir mi buzón ↗</a>{% endif %}</section>
+      <section class="card"><span class="step">02</span><h2>Confirmar recuperación</h2><p>Copiá el token y el identificador de cuenta del mensaje.</p><form id="reset-form"><label for="reset-token">Token de recuperación</label><input id="reset-token" name="token" required autocomplete="off" maxlength="256"><label for="reset-user">Identificador de cuenta</label><input id="reset-user" name="user_id" required maxlength="256"><label for="reset-password">Nueva contraseña</label><input id="reset-password" name="new_password" type="password" minlength="12" maxlength="256" autocomplete="new-password" required><small class="hint">Al menos 12 caracteres.</small><button type="submit">Actualizar contraseña <span>→</span></button></form></section>
+      </div><a class="text-link" href="/">← Volver al portal</a>
+    {% elif not g.user %}
+      <section class="login-panel"><p class="eyebrow">BIENVENIDO A NEXO</p><h1>Un espacio para<br>seguir avanzando.</h1><p class="intro">Ingresá a tu cuenta para consultar tus solicitudes y gestionar la información de tu empresa.</p>
+      <form id="login-form" class="card"><h2>Iniciar sesión</h2><label for="username">Usuario</label><input id="username" name="username" autocomplete="username" placeholder="Tu usuario de empresa" required maxlength="256"><label for="password">Contraseña</label><input id="password" name="password" type="password" autocomplete="current-password" placeholder="Ingresá tu contraseña" required maxlength="256"><button type="submit">Ingresar al portal <span>→</span></button><a class="text-link" href="/?view=recovery">Olvidé mi contraseña</a></form><p class="footnote">Tu información, en el espacio de tu empresa.</p></section>
+    {% elif view == 'inbox' and g.user.role == 'client' %}
+      <div class="heading-row"><div><p class="eyebrow">COMUNICACIONES</p><h1>Mi buzón</h1><p class="intro">Mensajes y solicitudes de recuperación de tu cuenta.</p></div><button type="button" class="secondary" id="refresh-inbox">Actualizar ↻</button></div>
+      <section class="card" id="inbox-list"><p class="empty">Cargando mensajes…</p></section><a class="text-link" href="/?view=recovery">Confirmar una recuperación →</a>
+    {% elif view == 'tickets' and g.user.role == 'client' %}
+      <p class="eyebrow">CENTRO DE SOPORTE</p><h1>Mis solicitudes</h1><p class="intro">Consultá el detalle y el seguimiento de tus tickets.</p>
+      <section class="summary-strip"><div><span class="summary-icon">↗</span><div><strong>Estamos para ayudarte</strong><p>Todas tus consultas, organizadas en un solo lugar.</p></div></div><span class="tag">Soporte empresarial</span></section>
+      <section class="card table-card"><div class="card-heading"><h2>Solicitudes registradas</h2><span class="muted">Mi cuenta</span></div><div id="ticket-list"><p class="empty">Cargando solicitudes…</p></div></section>
+      <section class="card" id="ticket-detail" hidden></section>
+    {% elif view == 'exports' and g.user.role != 'client' %}
+      <p class="eyebrow">INFORMACIÓN DE TU EMPRESA</p><h1>Exportaciones</h1><p class="intro">Encontrá reportes y descargá los archivos disponibles para tu cuenta.</p>
+      <form id="search-form" class="search-bar"><label class="visually-hidden" for="search">Buscar exportaciones</label><input id="search" name="q" placeholder="Buscar por nombre de reporte…" maxlength="300"><button type="submit">Buscar <span>→</span></button></form>
+      <section class="card table-card"><div class="card-heading"><h2>Archivos disponibles</h2><span class="muted">Formato CSV</span></div><div id="export-list"><p class="empty">Cargando archivos…</p></div></section>
+    {% else %}
+      <section class="card"><h1>Sección no disponible</h1><a class="text-link" href="/">Volver al inicio →</a></section>
+    {% endif %}
+    <footer class="page-footer"><span>NEXO EMPRESAS</span><span>Un espacio de trabajo compartido.</span></footer>
+    </div>
+  </main>
+</body>
+</html>

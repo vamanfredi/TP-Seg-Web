@@ -1,0 +1,31 @@
+services:
+  web:
+    build: .
+    ports:
+      - "127.0.0.1:8000:8000"
+    environment:
+      LAB_MODE: ${LAB_MODE:-0}
+      LAB_DEFAULT_CLIENT_PASSWORD: ${LAB_DEFAULT_CLIENT_PASSWORD-ClienteA-2026!}
+      VULN_A01: ${VULN_A01:-0}
+      VULN_A07: ${VULN_A07:-0}
+      VULN_A05: ${VULN_A05:-0}
+      VULN_A10: ${VULN_A10:-0}
+      APP_DATA_DIR: ${APP_DATA_DIR:-/data}
+      RESET_TOKEN_TTL_SECONDS: ${RESET_TOKEN_TTL_SECONDS:-600}
+    volumes:
+      - lab-data:/data
+    read_only: true
+    tmpfs:
+      - /tmp
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health', timeout=3)"]
+      interval: 5s
+      timeout: 4s
+      retries: 10
+      start_period: 10s
+volumes:
+  lab-data:

@@ -3,14 +3,16 @@ import hmac
 import secrets
 import time
 from functools import wraps
+from urllib.parse import urlencode
 
-from flask import Blueprint, abort, current_app, g, jsonify, request
+from flask import Blueprint, abort, current_app, g, jsonify, render_template, request
 from werkzeug.security import check_password_hash, generate_password_hash
 
 from .db import core
 
 bp = Blueprint("auth", __name__)
 COOKIE = "portal_session"
+RESET_PATH = "/restablecer-contrasena"
 
 
 def token_hash(token):
@@ -125,13 +127,24 @@ def recovery():
     if user:
         token = secrets.token_urlsafe(32)
         now = int(time.time())
-        message = f"Recuperación de cuenta\nToken: {token}\nCuenta: {user['id']}\nUsalo en Confirmar recuperación."
+        message = (f"Recuperación de cuenta\nEnlace: {reset_link(token, user['id'])}\n"
+                   f"Token: {token}\nCuenta: {user['id']}")
         with core() as db:
             db.execute("INSERT INTO password_reset_tokens VALUES (?, ?, ?, NULL)", (
                 token_hash(token), user["id"], now + current_app.config["RESET_TOKEN_TTL_SECONDS"]))
             db.execute("INSERT INTO lab_messages (recipient_user_id, body, created_at) VALUES (?, ?, ?)",
                        (user["id"], message, now))
     return jsonify(message="Si la cuenta existe, enviamos las instrucciones a su buzón."), 202
+
+
+def reset_link(token, user_id):
+    fragment = urlencode({"token": token, "user_id": user_id})
+    return f"{current_app.config['PORTAL_URL']}{RESET_PATH}#{fragment}"
+
+
+@bp.get(RESET_PATH)
+def reset_form():
+    return render_template("reset_password.html")
 
 
 @bp.post("/api/auth/reset-password")

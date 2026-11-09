@@ -7,12 +7,21 @@ from werkzeug.security import generate_password_hash
 from .config import configure
 
 
+def security_headers(response):
+    response.headers["Cache-Control"] = "no-store"
+    response.headers["X-Content-Type-Options"] = "nosniff"
+    response.headers["Referrer-Policy"] = "no-referrer"
+    response.headers["Content-Security-Policy"] = "default-src 'self'; script-src 'self'; style-src 'self'; object-src 'none'; base-uri 'none'; frame-ancestors 'none'; form-action 'self'"
+    return response
+
+
 def create_app(config=None, *, restore_client_password=False):
     app = Flask(__name__)
     configure(app, config)
     app.config["DUMMY_PASSWORD_HASH"] = generate_password_hash(secrets.token_urlsafe(18))
     from . import auth, db, exports, lab, tickets
     app.teardown_appcontext(db.close_databases)
+    app.after_request(security_headers)
     app.before_request(auth.load_session)
     app.register_blueprint(auth.bp)
     app.register_blueprint(tickets.bp)
@@ -35,14 +44,6 @@ def create_app(config=None, *, restore_client_password=False):
     def unexpected_error(error):
         app.logger.error("Error interno: %s", type(error).__name__)
         return jsonify(error="Error interno del servidor."), 500
-
-    @app.after_request
-    def security_headers(response):
-        response.headers["Cache-Control"] = "no-store"
-        response.headers["X-Content-Type-Options"] = "nosniff"
-        response.headers["Referrer-Policy"] = "no-referrer"
-        response.headers["Content-Security-Policy"] = "default-src 'self'; script-src 'self'; style-src 'self'; object-src 'none'; base-uri 'none'; frame-ancestors 'none'; form-action 'self'"
-        return response
 
     with app.app_context():
         lab.initialize()

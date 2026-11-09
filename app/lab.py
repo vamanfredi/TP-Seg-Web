@@ -135,10 +135,13 @@ def restore_client_password():
 @bp.get("/lab/inbox")
 @require_user("client")
 def inbox():
-    messages = core().execute(
+    return jsonify(messages=[dict(row) for row in mailbox_messages(g.user["id"])])
+
+
+def mailbox_messages(user_id):
+    return core().execute(
         "SELECT id, body, created_at FROM lab_messages WHERE recipient_user_id = ? ORDER BY id DESC",
-        (g.user["id"],)).fetchall()
-    return jsonify(messages=[dict(row) for row in messages])
+        (user_id,)).fetchall()
 
 
 def register(app):
@@ -158,4 +161,21 @@ def register(app):
     @click.option("--developer", is_flag=True, help="Incluye operador y supervisor, solo para preparación local.")
     def credentials_command(developer):
         credentials = json.loads((current_app.config["APP_DATA_DIR"] / "developer-credentials.json").read_text())
+        click.echo(json.dumps(credentials if developer else credentials["client"], indent=2))
+
+    @lab_cli.command("mailbox-credentials")
+    @click.option("--developer", is_flag=True, help="Incluye operador y supervisor, solo para preparación local.")
+    def mailbox_credentials_command(developer):
+        """Consultar las credenciales independientes del buzón."""
+        from .mailbox import mailbox_key, mailbox_password
+
+        path = current_app.config["APP_DATA_DIR"] / "developer-credentials.json"
+        accounts = json.loads(path.read_text(encoding="utf-8"))
+        roles = accounts if developer else ("client",)
+        key = mailbox_key()
+        credentials = {}
+        for role in roles:
+            username = accounts[role]["username"]
+            user = core().execute("SELECT id, username, role FROM users WHERE username = ?", (username,)).fetchone()
+            credentials[role] = {"username": username, "password": mailbox_password(key, user)}
         click.echo(json.dumps(credentials if developer else credentials["client"], indent=2))

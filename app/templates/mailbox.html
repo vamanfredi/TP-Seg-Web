@@ -1,0 +1,96 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#f4f6f3">
+  <title>{% if username %}Buzón de {{ username }}{% else %}Acceso al buzón{% endif %} · Nexo</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='mailbox.css') }}">
+</head>
+<body>
+  <header class="site-header">
+    <a class="brand" href="/" aria-label="Nexo, inicio del buzón">
+      <span class="brand-mark" aria-hidden="true">n.</span>
+      <span>nexo<span class="brand-period">.</span></span>
+    </a>
+    <span class="header-note">BUZÓN SEGURO</span>
+  </header>
+
+  <main class="page-shell">
+    <section class="intro" aria-labelledby="page-title">
+      <p class="eyebrow">MENSAJES DE TU CUENTA</p>
+      {% if username %}
+        <h1 id="page-title">Tu buzón</h1>
+        <p>Hola, <strong>{{ username }}</strong>. Acá vas a encontrar tus mensajes de recuperación.</p>
+      {% else %}
+        <h1 id="page-title">Ingresá a tu buzón</h1>
+        <p>Ingresá con tu usuario y la contraseña del buzón para consultar tus mensajes.</p>
+      {% endif %}
+    </section>
+
+    {% if error %}
+      <div class="alert" role="alert">{{ error }}</div>
+    {% endif %}
+
+    {% if username %}
+      <div class="toolbar">
+        <div>
+          <span class="section-kicker">BUZÓN PERSONAL</span>
+          <h2>Mensajes recibidos</h2>
+        </div>
+        <form action="/logout" method="post">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+          <button class="button button-quiet" type="submit">Cerrar sesión <span aria-hidden="true">↗</span></button>
+        </form>
+      </div>
+
+      {% if messages %}
+        <div class="message-list" aria-label="Mensajes recibidos">
+          {% for message in messages %}
+            <article class="message-card">
+              <div class="message-topline">
+                <span class="message-icon" aria-hidden="true">✉</span>
+                <time class="message-date">{{ message.created_at }}</time>
+              </div>
+              <div class="message-content">
+                {% if message.reset_url %}
+                  <h3>Recuperación de contraseña</h3>
+                  <p>Recibiste una solicitud para cambiar la contraseña de tu cuenta. Usá el enlace para elegir una nueva.</p>
+                  <a class="button button-primary" href="{{ message.reset_url }}">Restablecer contraseña <span aria-hidden="true">→</span></a>
+                {% else %}
+                  <h3>Mensaje</h3>
+                  <div class="message-body">{{ message.body }}</div>
+                {% endif %}
+              </div>
+            </article>
+          {% endfor %}
+        </div>
+      {% else %}
+        <section class="empty-state">
+          <span class="empty-icon" aria-hidden="true">✉</span>
+          <h2>Tu buzón está al día</h2>
+          <p>Cuando recibas un mensaje, va a aparecer acá.</p>
+        </section>
+      {% endif %}
+    {% else %}
+      <section class="login-card" aria-labelledby="login-title">
+        <div class="login-card-heading">
+          <span class="login-icon" aria-hidden="true">↗</span>
+          <div><span class="section-kicker">ACCESO PERSONAL</span><h2 id="login-title">Iniciar sesión</h2></div>
+        </div>
+        <form action="/login" method="post">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+          <label for="username">Usuario</label>
+          <input id="username" name="username" type="text" autocomplete="username" required maxlength="256" placeholder="Tu nombre de usuario">
+          <label for="password">Contraseña</label>
+          <input id="password" name="password" type="password" autocomplete="current-password" required maxlength="256" placeholder="Tu contraseña">
+          <button class="button button-primary submit-button" type="submit">Abrir mi buzón <span aria-hidden="true">→</span></button>
+        </form>
+        <p class="privacy-note"><span aria-hidden="true">●</span> Solo vos podés ver los mensajes de esta cuenta.</p>
+      </section>
+    {% endif %}
+
+    <footer class="page-footer"><span>NEXO · BUZÓN DE RECUPERACIÓN</span><span>Mensajes privados de tu cuenta</span></footer>
+  </main>
+</body>
+</html>

@@ -6,12 +6,15 @@ services:
     environment:
       LAB_MODE: ${LAB_MODE:-0}
       LAB_DEFAULT_CLIENT_PASSWORD: ${LAB_DEFAULT_CLIENT_PASSWORD-ClienteA-2026!}
+      LAB_DEFAULT_MAILBOX_PASSWORD: ${LAB_DEFAULT_MAILBOX_PASSWORD-ClienteA-2026!}
       VULN_A01: ${VULN_A01:-0}
       VULN_A07: ${VULN_A07:-0}
       VULN_A05: ${VULN_A05:-0}
       VULN_A10: ${VULN_A10:-0}
       APP_DATA_DIR: ${APP_DATA_DIR:-/data}
       RESET_TOKEN_TTL_SECONDS: ${RESET_TOKEN_TTL_SECONDS:-600}
+      PORTAL_URL: ${PORTAL_URL:-http://127.0.0.1:8000}
+      MAILBOX_URL: ${MAILBOX_URL:-http://127.0.0.1:8025}
     volumes:
       - lab-data:/data
     read_only: true
@@ -27,5 +30,27 @@ services:
       timeout: 4s
       retries: 10
       start_period: 10s
+  mailbox:
+    build: .
+    command: ["python", "-m", "app.mailbox"]
+    depends_on:
+      web:
+        condition: service_healthy
+    ports:
+      - "127.0.0.1:8025:8025"
+    environment:
+      LAB_DEFAULT_MAILBOX_PASSWORD: ${LAB_DEFAULT_MAILBOX_PASSWORD-BuzonA-2026!}
+      APP_DATA_DIR: ${APP_DATA_DIR:-/data}
+      PORTAL_URL: ${PORTAL_URL:-http://127.0.0.1:8000}
+      MAILBOX_URL: ${MAILBOX_URL:-http://127.0.0.1:8025}
+    volumes:
+      - lab-data:/data
+    read_only: true
+    tmpfs:
+      - /tmp
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
 volumes:
   lab-data:

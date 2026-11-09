@@ -70,18 +70,6 @@ async function tickets() {
   }
 }
 
-async function inbox() {
-  const data = await api("/lab/inbox");
-  const list = $("#inbox-list");
-  list.replaceChildren();
-  for (const message of data.messages) {
-    const article = node("article", undefined, "message");
-    article.append(node("h2", "Recuperación de cuenta"), node("small", new Date(message.created_at * 1000).toLocaleString("es-AR")), node("pre", message.body));
-    list.append(article);
-  }
-  if (!data.messages.length) list.append(node("p", "No tenés mensajes. Las instrucciones de recuperación aparecerán aquí.", "empty"));
-}
-
 async function exportsList(query = "") {
   const data = await api(`/api/exports/search?q=${encodeURIComponent(query)}`);
   const list = $("#export-list");
@@ -112,24 +100,38 @@ async function exportsList(query = "") {
   if (!data.exports.length) list.append(node("p", "No encontramos archivos para esa búsqueda.", "empty"));
 }
 
+function setupReset() {
+  const reset = $("#reset-form");
+  if (!reset) return;
+  const params = new URLSearchParams(location.hash.slice(1));
+  const token = params.get("token");
+  const userId = params.get("user_id");
+  if (!token || !userId) {
+    notice("Abrí el enlace de recuperación desde tu buzón.", true);
+    return;
+  }
+  reset.hidden = false;
+  form("#reset-form", async (body) => {
+    const result = await api("/api/auth/reset-password", {...body, token, user_id: userId});
+    reset.reset();
+    reset.hidden = true;
+    history.replaceState(null, "", location.pathname);
+    notice(result.message);
+  });
+}
+
 async function start() {
   const session = await api("/api/session");
   csrf = session.csrf_token;
   form("#login-form", async (body) => { await api("/api/auth/login", body); location.assign("/"); });
   form("#recovery-form", async (body) => notice((await api("/api/auth/recovery", body)).message));
-  form("#reset-form", async (body) => {
-    notice((await api("/api/auth/reset-password", body)).message);
-    $("#reset-form").reset();
-    csrf = (await api("/api/session")).csrf_token;
-  });
+  setupReset();
   form("#search-form", async (body) => exportsList(body.q));
   $("#logout")?.addEventListener("click", async () => {
     try { await api("/api/auth/logout", {}); location.assign("/"); }
     catch (error) { notice(error.message, true); }
   });
-  $("#refresh-inbox")?.addEventListener("click", () => inbox().catch(error => notice(error.message, true)));
   if ($("#ticket-list")) await tickets();
-  if ($("#inbox-list")) await inbox();
   if ($("#export-list")) await exportsList();
 }
 start().catch(error => notice(error.message, true));
